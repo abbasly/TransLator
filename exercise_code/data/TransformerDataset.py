@@ -55,6 +55,9 @@ class CustomIterableDataset(IterableDataset):
         """
         for file in self.file_paths:
             reader = pd.read_csv(filepath_or_buffer=file, iterator=True, chunksize=self.chunk_size)
+            for chunk in reader:
+                for _, row in chunk.iterrows():
+                    yield {'source': row['source'], 'target': row['target']}
 
             ########################################################################
             # TODO:                                                                #
