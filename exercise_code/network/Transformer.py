@@ -233,6 +233,8 @@ class Embedding(nn.Module):
         self.pos_encoding = None
         self.dropout = None
 
+        self.embedding = nn.Embedding(vocab_size, d_model)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 1: Initialize the embedding layer (torch.nn implementation)   #
@@ -249,7 +251,7 @@ class Embedding(nn.Module):
         ########################################################################
 
 
-        pass
+        # pass
 
         ########################################################################
         #                           END OF YOUR CODE                           #
@@ -281,6 +283,7 @@ class Embedding(nn.Module):
         if self.pos_encoding is not None:
             pos_encoding = self.pos_encoding[:sequence_length]
 
+        outputs = self.embedding(inputs) 
         ########################################################################
         # TODO:                                                                #
         #   Task 1: Compute the outputs of the embedding layer                 #
@@ -292,7 +295,7 @@ class Embedding(nn.Module):
         ########################################################################
 
 
-        pass
+        # pass
 
         ########################################################################
         #                           END OF YOUR CODE                           #
@@ -317,6 +320,8 @@ class ScaledDotAttention(nn.Module):
 
         self.softmax = None
         self.dropout = None
+
+        self.softmax = nn.Softmax(dim=-1)
 
         ########################################################################
         # TODO:                                                                #
@@ -355,6 +360,11 @@ class ScaledDotAttention(nn.Module):
         """
         scores = None
         outputs = None
+
+
+
+        scores = self.softmax(q @ torch.transpose(k, -1,-2))
+        outputs = scores @ v
 
         ########################################################################
         # TODO:                                                                #
