@@ -430,6 +430,13 @@ class MultiHeadAttention(nn.Module):
         self.project = None
         self.dropout = None
 
+
+        self.weights_q = nn.Linear(d_model, n_heads*d_k, bias=False)
+        self.weights_k = nn.Linear(d_model, n_heads*d_k, bias=False)
+        self.weights_v = nn.Linear(d_model, n_heads*d_v, bias=False)
+        self.attention = ScaledDotAttention(d_k = d_k)
+        self.project = nn.Linear(d_v * n_heads, d_model, bias = False)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 3:                                                            #
@@ -481,6 +488,29 @@ class MultiHeadAttention(nn.Module):
 
         outputs = None
 
+        q = self.weights_q(q)
+        k = self.weights_k(k)
+        v = self.weights_v(v)
+
+        q = q.reshape(batch_size, sequence_length_queries, self.n_heads, self.d_k)
+        q = q.transpose(-2,-3)
+        k = k.reshape(batch_size, sequence_length_keys, self.n_heads, self.d_k)
+        k = k.transpose(-2,-3)
+        v = v.reshape(batch_size, sequence_length_keys, self.n_heads, self.d_v)
+        v = v.transpose(-2,-3)
+
+
+        scaledDotAttntion = self.attention(q, k, v)
+        scaledDotAttntion = scaledDotAttntion.transpose(-2,-3)
+        x1,x2,x3,x4 = scaledDotAttntion.size()
+        scaledDotAttntion = scaledDotAttntion.reshape(x1, x2, x3*x4)
+
+        outputs = self.project(scaledDotAttntion)
+
+        # print(scaledDotAttntion.shape)
+
+
+
         ########################################################################
         # TODO:                                                                #
         #   Task 3:                                                            #
@@ -510,7 +540,7 @@ class MultiHeadAttention(nn.Module):
         ########################################################################
 
 
-        pass
+        # pass
 
         ########################################################################
         #                           END OF YOUR CODE                           #
