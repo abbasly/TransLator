@@ -571,6 +571,12 @@ class FeedForwardNeuralNetwork(nn.Module):
         self.linear_2 = None
         self.dropout = None
 
+        self.linear_1 = nn.Linear(d_model, d_ff)
+        self.relu = nn.ReLU()
+        self.linear_2 = nn.Linear(d_ff, d_model)
+
+        self.dropout = nn.Dropout(p = dropout)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 5: Initialize the feed forward network                        #
@@ -597,6 +603,11 @@ class FeedForwardNeuralNetwork(nn.Module):
             - outputs: (batch_size, sequence_length_queries, d_model)
         """
         outputs = None
+
+        linear1 = self.relu(self.linear_1(inputs))
+        linear2 = self.linear_2(linear1)
+
+        outputs = self.dropout(linear2)
 
         ########################################################################
         # TODO:                                                                #
@@ -641,6 +652,11 @@ class EncoderBlock(nn.Module):
         self.ffn = None
         self.layer_norm2 = None
 
+        self.multi_head = MultiHeadAttention(d_model, d_k, d_v, n_heads, dropout)
+        self.layer_norm1 = nn.LayerNorm(d_model)
+        self.ffn = FeedForwardNeuralNetwork(d_model, d_ff, dropout)
+        self.layer_norm2 = nn.LayerNorm(d_model)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 6: Initialize an Encoder Block                                #
@@ -654,7 +670,7 @@ class EncoderBlock(nn.Module):
         ########################################################################
 
 
-        pass
+        # pass
 
         ########################################################################
         #                           END OF YOUR CODE                           #
@@ -676,6 +692,9 @@ class EncoderBlock(nn.Module):
         """
         outputs = None
 
+        multi_head_out = self.layer_norm1(self.multi_head(inputs, inputs, inputs) + inputs)
+        outputs = self.layer_norm2(self.ffn(multi_head_out)+multi_head_out)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 6: Implement the forward pass of the encoder block            #
@@ -686,7 +705,7 @@ class EncoderBlock(nn.Module):
         ########################################################################
 
 
-        pass
+        # pass
 
         ########################################################################
         #                           END OF YOUR CODE                           #
