@@ -1,5 +1,6 @@
 from torch import nn
 import torch
+import numpy as np
 from ..util.transformer_util import positional_encoding, create_causal_mask, AttentionScoresSaver
 
 # Module to save and visualize scores
@@ -62,6 +63,13 @@ class Transformer(nn.Module):
         self.decoder = None
         self.output_layer = None
 
+        self.embedding = Embedding(vocab_size, self.d_model, self.max_length, self.dropout)
+        self.encoder = Encoder(self.d_model, self.d_k, self.d_v, self.n_heads, self.d_ff, self.n, self.dropout)
+        self.decoder = Decoder(self.d_model, self.d_k, self.d_v, self.n_heads, self.d_ff, self.n, self.dropout)
+
+        self.output_layer = nn.Linear(self.d_model, self.vocab_size, bias = False)
+
+
         ########################################################################
         # TODO:                                                                #
         #   Task 11: Initialize the the transformer!                           #
@@ -112,6 +120,14 @@ class Transformer(nn.Module):
 
         outputs = None
 
+
+        encoder_embeds = self.embedding(encoder_inputs)
+        encoder_outputs = self.encoder(encoder_embeds, encoder_mask)
+        decoder_embeds = self.embedding(decoder_inputs)
+        decoder_embeds = self.decoder(decoder_embeds, encoder_outputs, decoder_mask, encoder_mask)
+
+        outputs = self.output_layer(decoder_embeds)
+        # print(outputs.shape)
         ########################################################################
         # TODO:                                                                #
         #   Task 11: Implement the forward pass of the transformer!            #
@@ -365,8 +381,19 @@ class ScaledDotAttention(nn.Module):
 
 
 
-        scores = self.softmax(q @ torch.transpose(k, -1,-2))
-        outputs = scores @ v
+        inf_mask = np.where(mask, 0, -np.inf)
+
+
+
+        if mask is not None:
+            scores = (q @ torch.transpose(k, -1,-2)) + inf_mask
+            scores = self.softmax(scores)
+            outputs = scores
+        else:
+            scores = self.softmax(q @ torch.transpose(k, -1,-2))
+            outputs = scores @ v
+        # print(scores)
+        # outputs = scores
 
         ########################################################################
         # TODO:                                                                #
@@ -798,6 +825,14 @@ class DecoderBlock(nn.Module):
         self.ffn = None
         self.layer_norm3 = None
 
+
+        self.causal_multi_head = MultiHeadAttention(d_model, d_k, d_v, n_heads, dropout)
+        self.layer_norm1 = nn.LayerNorm(d_model)
+        self.cross_multi_head = MultiHeadAttention(d_model, d_k, d_v, n_heads, dropout)
+        self.layer_norm2 = nn.LayerNorm(d_model)
+        self.ffn = FeedForwardNeuralNetwork(d_model, d_ff, dropout)
+        self.layer_norm3 = nn.LayerNorm(d_model)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 9: Initialize an Decoder Block                                #
@@ -841,6 +876,10 @@ class DecoderBlock(nn.Module):
         """
         outputs = None
 
+        casual_multi_head = self.layer_norm1(self.causal_multi_head(inputs, inputs, inputs, causal_mask)+ inputs)
+        multi_head_cross = self.layer_norm2(self.cross_multi_head(casual_multi_head, casual_multi_head, context)+casual_multi_head)
+        outputs = self.layer_norm3(self.ffn(multi_head_cross)+multi_head_cross)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 9: Implement the forward pass of the decoder block            #
@@ -857,7 +896,7 @@ class DecoderBlock(nn.Module):
         ########################################################################
 
 
-        pass
+        # pass
 
         ########################################################################
         #                           END OF YOUR CODE                           #
