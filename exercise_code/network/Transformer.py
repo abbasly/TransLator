@@ -235,6 +235,8 @@ class Embedding(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, d_model)
 
+        self.pos_encoding = positional_encoding(d_model, max_length)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 1: Initialize the embedding layer (torch.nn implementation)   #
@@ -283,7 +285,7 @@ class Embedding(nn.Module):
         if self.pos_encoding is not None:
             pos_encoding = self.pos_encoding[:sequence_length]
 
-        outputs = self.embedding(inputs) 
+        outputs = self.embedding(inputs) + pos_encoding
         ########################################################################
         # TODO:                                                                #
         #   Task 1: Compute the outputs of the embedding layer                 #
