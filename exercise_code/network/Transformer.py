@@ -253,6 +253,8 @@ class Embedding(nn.Module):
 
         self.pos_encoding = positional_encoding(d_model, max_length)
 
+        self.dropout = nn.Dropout(dropout)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 1: Initialize the embedding layer (torch.nn implementation)   #
@@ -301,7 +303,8 @@ class Embedding(nn.Module):
         if self.pos_encoding is not None:
             pos_encoding = self.pos_encoding[:sequence_length]
 
-        outputs = self.embedding(inputs) + pos_encoding
+        outputs = self.dropout(self.embedding(inputs) + pos_encoding)
+        
         ########################################################################
         # TODO:                                                                #
         #   Task 1: Compute the outputs of the embedding layer                 #
@@ -340,6 +343,7 @@ class ScaledDotAttention(nn.Module):
         self.dropout = None
 
         self.softmax = nn.Softmax(dim=-1)
+        self.dropout = nn.Dropout(dropout)
 
         ########################################################################
         # TODO:                                                                #
@@ -381,16 +385,24 @@ class ScaledDotAttention(nn.Module):
 
 
 
-        inf_mask = np.where(mask, 0, -np.inf)
+        
 
 
 
         if mask is not None:
-            scores = (q @ torch.transpose(k, -1,-2)) + inf_mask
+            inf_mask = torch.where(mask, torch.tensor(0.0), torch.tensor(-float('inf')))
+            # print(type(inf_mask))
+            # print("here", q.shape, k.shape)
+            scores = q @ torch.transpose(k, -1,-2)
+            # print(scores.shape)
+            # print(inf_mask.shape)
+            scores = scores + inf_mask
             scores = self.softmax(scores)
-            outputs = scores
+            scores = self.dropout(scores)
+            outputs = scores @ v
         else:
             scores = self.softmax(q @ torch.transpose(k, -1,-2))
+            scores = self.dropout(scores)
             outputs = scores @ v
         # print(scores)
         # outputs = scores
@@ -466,6 +478,8 @@ class MultiHeadAttention(nn.Module):
         self.attention = ScaledDotAttention(d_k = d_k)
         self.project = nn.Linear(d_v * n_heads, d_model, bias = False)
 
+        self.dropout = nn.Dropout(dropout)
+
         ########################################################################
         # TODO:                                                                #
         #   Task 3:                                                            #
@@ -521,20 +535,30 @@ class MultiHeadAttention(nn.Module):
         k = self.weights_k(k)
         v = self.weights_v(v)
 
-        q = q.reshape(batch_size, sequence_length_queries, self.n_heads, self.d_k)
+        q = q.reshape(batch_size, -1, self.n_heads, self.d_k)
         q = q.transpose(-2,-3)
-        k = k.reshape(batch_size, sequence_length_keys, self.n_heads, self.d_k)
+        k = k.reshape(batch_size, -1, self.n_heads, self.d_k)
         k = k.transpose(-2,-3)
-        v = v.reshape(batch_size, sequence_length_keys, self.n_heads, self.d_v)
+        v = v.reshape(batch_size, -1, self.n_heads, self.d_v)
+        # v = v.reshape(batch_size, sequence_length_keys, self.n_heads, -1)
+
+        # print(sequence_length_keys, v.shape)
+        # print(v.shape)
         v = v.transpose(-2,-3)
 
 
-        scaledDotAttntion = self.attention(q, k, v)
+        if mask is not None:
+            mask = mask.unsqueeze(1) 
+            scaledDotAttntion = self.attention(q, k, v, mask)
+        else:
+            scaledDotAttntion = self.attention(q, k, v)
+        # scaledDotAttntion = self.attention(q, k, v, mask)
         scaledDotAttntion = scaledDotAttntion.transpose(-2,-3)
+        # print(scaledDotAttntion.size())
         x1,x2,x3,x4 = scaledDotAttntion.size()
         scaledDotAttntion = scaledDotAttntion.reshape(x1, x2, x3*x4)
 
-        outputs = self.project(scaledDotAttntion)
+        outputs = self.dropout(self.project(scaledDotAttntion))
 
         # print(scaledDotAttntion.shape)
 
@@ -719,7 +743,7 @@ class EncoderBlock(nn.Module):
         """
         outputs = None
 
-        multi_head_out = self.layer_norm1(self.multi_head(inputs, inputs, inputs) + inputs)
+        multi_head_out = self.layer_norm1(self.multi_head(inputs, inputs, inputs, pad_mask) + inputs)
         outputs = self.layer_norm2(self.ffn(multi_head_out)+multi_head_out)
 
         ########################################################################
@@ -876,8 +900,8 @@ class DecoderBlock(nn.Module):
         """
         outputs = None
 
-        casual_multi_head = self.layer_norm1(self.causal_multi_head(inputs, inputs, inputs, causal_mask)+ inputs)
-        multi_head_cross = self.layer_norm2(self.cross_multi_head(casual_multi_head, casual_multi_head, context)+casual_multi_head)
+        casual_multi_head = self.layer_norm1(self.causal_multi_head(inputs, inputs, inputs, causal_mask) + inputs)
+        multi_head_cross = self.layer_norm2(self.cross_multi_head(casual_multi_head, context, context, pad_mask)+casual_multi_head)
         outputs = self.layer_norm3(self.ffn(multi_head_cross)+multi_head_cross)
 
         ########################################################################
