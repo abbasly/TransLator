@@ -1,6 +1,7 @@
 from torch import nn
 import torch
 import numpy as np
+import math
 from ..util.transformer_util import positional_encoding, create_causal_mask, AttentionScoresSaver
 
 # Module to save and visualize scores
@@ -399,11 +400,11 @@ class ScaledDotAttention(nn.Module):
             scores = scores + inf_mask
             scores = self.softmax(scores)
             scores = self.dropout(scores)
-            outputs = scores @ v
+            outputs = (scores @ v) / math.sqrt(self.d_k)
         else:
             scores = self.softmax(q @ torch.transpose(k, -1,-2))
             scores = self.dropout(scores)
-            outputs = scores @ v
+            outputs = scores @ v / math.sqrt(self.d_k)
         # print(scores)
         # outputs = scores
 
