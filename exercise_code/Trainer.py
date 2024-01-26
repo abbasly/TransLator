@@ -136,6 +136,19 @@ class Trainer:
         labels = None
         label_mask = None
 
+        encoder_inputs = batch['encoder_inputs'].to(self.device)
+        encoder_mask = batch['encoder_mask'].to(self.device)
+        decoder_inputs = batch['decoder_inputs'].to(self.device)
+        decoder_mask = batch['decoder_mask'].to(self.device)
+        labels = batch['labels'].to(self.device)
+        label_mask = batch['label_mask'].to(self.device)
+        label_length = batch['label_length'].to(self.device)
+
+        outputs = self.model(encoder_inputs, decoder_inputs, encoder_mask, decoder_mask)
+        loss = self.loss_func(outputs, labels, label_mask, label_length)
+
+        # print()
+
         ########################################################################
         # TODO:                                                                #
         #   Task 15:                                                           #
