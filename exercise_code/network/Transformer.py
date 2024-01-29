@@ -395,16 +395,17 @@ class ScaledDotAttention(nn.Module):
             # print(type(inf_mask))
             # print("here", q.shape, k.shape)
             scores = q @ torch.transpose(k, -1,-2)
+            # scores = scores
             # print(scores.shape)
             # print(inf_mask.shape)
             scores = scores + inf_mask
-            scores = self.softmax(scores)
-            scores = self.dropout(scores)
-            outputs = (scores @ v) / math.sqrt(self.d_k)
+            scores = self.softmax(scores / math.sqrt(self.d_k))
+            scores = self.dropout(scores )
+            outputs = (scores @ v)
         else:
-            scores = self.softmax(q @ torch.transpose(k, -1,-2))
+            scores = self.softmax((q @ torch.transpose(k, -1,-2)) / math.sqrt(self.d_k))
             scores = self.dropout(scores)
-            outputs = scores @ v / math.sqrt(self.d_k)
+            outputs = scores @ v
         # print(scores)
         # outputs = scores
 
